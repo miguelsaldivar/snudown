@@ -12,17 +12,16 @@ import distutils.command.build
 
 # Change these to the correct paths
 c2rust_path     = os.path.realpath(os.path.join(os.getcwd(), "..", "..", ".."))
+cc_wrapper_path = c2rust_path + "/cross-checks/c-checks/clang-plugin/cc_wrapper.sh"
+cc_path         = c2rust_path + "/dependencies/llvm-6.0.0/build.{}/bin/clang".format(platform.uname()[1])
 plugin_path     = c2rust_path + "/cross-checks/c-checks/clang-plugin/build/plugin/CrossChecks.so"
 runtime_path    = c2rust_path + "/cross-checks/c-checks/clang-plugin/build/runtime/libruntime.a"
 fakechecks_path = c2rust_path + "/cross-checks/libfakechecks"
 clevrbuf_path   = c2rust_path + "/cross-checks/ReMon/libclevrbuf"
 
-os.environ["CC"] = c2rust_path + "/dependencies/llvm-6.0.0/build.{}/bin/clang".format(platform.uname()[1])
-plugin_args = ['-Xclang', '-load',
-               '-Xclang', plugin_path,
-               '-Xclang', '-add-plugin',
-               '-Xclang', 'crosschecks',
-               '-Xclang', '-plugin-arg-crosschecks',
+os.environ["CC"] = "{cc_wrapper} {cc} {plugin}".format(
+        cc_wrapper=cc_wrapper_path, cc=cc_path, plugin=plugin_path)
+plugin_args = ['-Xclang', '-plugin-arg-crosschecks',
                '-Xclang', '-C../snudown_c.c2r',
                '-ffunction-sections', # Used by --icf
                ]
