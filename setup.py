@@ -19,8 +19,6 @@ runtime_path    = c2rust_path + "/cross-checks/c-checks/clang-plugin/build/runti
 fakechecks_path = c2rust_path + "/cross-checks/libfakechecks"
 clevrbuf_path   = c2rust_path + "/cross-checks/ReMon/libclevrbuf"
 
-os.environ["CC"] = "{cc_wrapper} {cc} {plugin}".format(
-        cc_wrapper=cc_wrapper_path, cc=cc_path, plugin=plugin_path)
 plugin_args = ['-Xclang', '-plugin-arg-crosschecks',
                '-Xclang', '-C../snudown_c.c2r',
                '-ffunction-sections', # Used by --icf
@@ -111,6 +109,9 @@ class BuildSnudown(distutils.command.build.build):
             subprocess.check_call(["../translate.sh"])
             del extensions[0]
             del extensions[0]
+            # Set the compiler path to cc_wrapper.sh
+            os.environ["CC"] = "{cc_wrapper} {cc} {plugin}".format(
+                    cc_wrapper=cc_wrapper_path, cc=cc_path, plugin=plugin_path)
         distutils.command.build.build.run(self, *args, **kwargs)
 
 class GPerfingBuildExt(build_ext):
