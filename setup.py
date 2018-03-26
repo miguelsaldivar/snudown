@@ -74,7 +74,13 @@ extensions = [
 ]
 '''
 
-extensions = []
+extensions = [
+    Extension(
+        name='snudown',
+        sources=['snudown.c'] + c_files_in('src/') + c_files_in('html/'),
+        include_dirs=['src', 'html']
+    )
+]
 
 version = None
 version_re = re.compile(r'^#define\s+SNUDOWN_VERSION\s+"([^"]+)"$')
@@ -110,6 +116,7 @@ class BuildSnudown(distutils.command.build.build):
         extra_link_args = []
         extra_objects=[]
 
+        extensions.pop()
         if self.translate is not None:
             sources.append('src/bufprintf.c')
             library_dirs.append('translator-build')
@@ -160,18 +167,15 @@ class BuildSnudown(distutils.command.build.build):
     def run(self, *args, **kwargs):
         if self.translate is not None:
             subprocess.check_call(["../translate.sh", "translate"])
-            extension = self.build_extension()
-            extensions.append(extension)
+            extensions.append(self.build_extension())
 
         if self.rust_crosschecks is not None:
             subprocess.check_call(["../translate.sh", "rustcheck"])
-            extension = self.build_extension()
-            extensions.append(extension)
+            extensions.append(self.build_extension())
 
         if self.clang_crosschecks is not None:
             subprocess.check_call(["../translate.sh"])
-            extension = self.build_extension()
-            extensions.append(extension)
+            extensions.append(self.build_extension())
 
         distutils.command.build.build.run(self, *args, **kwargs)
 
