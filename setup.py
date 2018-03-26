@@ -41,7 +41,7 @@ def process_gperf_file(gperf_file, output_file):
 extensions[0] -> extension for translating to rust
 extensions[1] -> extension for translating and running rust xcheck
 extensions[2] -> extension for running clang xcheck
-'''
+
 extensions = [
     Extension(
         name='snudown',
@@ -54,8 +54,8 @@ extensions = [
         name='snudown',
         sources=['snudown.c', 'src/bufprintf.c'] + c_files_in('html/'),
         include_dirs=['src', 'html'],
-        libraries=['snudownrustxcheck', 'fakechecks'],
-        #libraries=['snudownrustxcheck', 'clevrbuf'],
+        #libraries=['snudownrustxcheck', 'fakechecks'],
+        libraries=['snudownrustxcheck', 'clevrbuf'],
         library_dirs=['translator-build', fakechecks_path, clevrbuf_path],
         extra_link_args=['-Wl,-rpath,{},-rpath,{}'.format(fakechecks_path, clevrbuf_path)],
     ),
@@ -64,14 +64,17 @@ extensions = [
         sources=['snudown.c', '../xchecks.c'] + c_files_in('src/') + c_files_in('html/'),
         include_dirs=['src', 'html'],
         library_dirs=[fakechecks_path, clevrbuf_path],
-        libraries=["fakechecks"],
-        #libraries=["clevrbuf"],
+        #libraries=["fakechecks"],
+        libraries=["clevrbuf"],
         extra_compile_args=plugin_args,
         extra_link_args=['-fuse-ld=gold', '-Wl,--gc-sections,--icf=safe',
                             '-Wl,-rpath,{},-rpath,{}'.format(fakechecks_path, clevrbuf_path)],
         extra_objects=[runtime_path],
-    )
+    ),
 ]
+'''
+
+extensions = []
 
 version = None
 version_re = re.compile(r'^#define\s+SNUDOWN_VERSION\s+"([^"]+)"$')
@@ -82,36 +85,94 @@ with open('snudown.c', 'r') as f:
             version = m.group(1)
 assert version
 
+
 class BuildSnudown(distutils.command.build.build):
     user_options = distutils.command.build.build.user_options + [
     ('translate', None,
     'translate from c to rust'),
+
     ('rust-crosschecks', None,
     'translate then run rust crosschecks'),
     ('clang-crosschecks', None,
-    'translate then run rust crosschecks'),
+    'translate then run clang crosschecks'),
+
+    ('fake-check', None,
+    'translate then run fake rust crosschecks'),
+
     ]
+
+    def build_extension(self):
+        sources = ['snudown.c']
+        sources.extend(c_files_in('html/'))
+        libraries = []
+        library_dirs= []
+        extra_compile_args = []
+        extra_link_args = []
+        extra_objects=[]
+
+        if self.translate is not None:
+            sources.append('src/bufprintf.c')
+            library_dirs.append('translator-build')
+            libraries.append('snudownrust')
+
+        if self.rust_crosschecks is not None:
+            sources.append('src/bufprintf.c')
+            library_dirs.extend(['translator-build', fakechecks_path, clevrbuf_path])
+            if self.fake_check is not None:
+                libraries.extend(['snudownrustxcheck', 'fakechecks'])
+            else:
+                libraries.extend(['snudownrustxcheck', 'clevrbuf'])
+            holder = ['-Wl,-rpath,{},-rpath,{}'.format(fakechecks_path, clevrbuf_path)]
+            extra_link_args.extend(holder)
+
+        if self.clang_crosschecks is not None:
+            # Set the compiler path to cc_wrapper.sh
+            os.environ["CC"] = "{cc_wrapper} {cc} {plugin}".format(
+                    cc_wrapper=cc_wrapper_path, cc=cc_path, plugin=plugin_path)
+            sources.append('../xchecks.c')
+            sources.extend(c_files_in('src/'))
+            library_dirs.extend([fakechecks_path, clevrbuf_path])
+            if self.fake_check is not None:
+                libraries.append('fakechecks')
+            else:
+                libraries.append('clevrbuf')
+            extra_compile_args.extend(plugin_args)
+            extra_link_args.extend(['-fuse-ld=gold', '-Wl,--gc-sections,--icf=safe',
+                                '-Wl,-rpath,{},-rpath,{}'.format(fakechecks_path, clevrbuf_path)])
+            extra_objects.append(runtime_path)
+
+        return Extension(
+            name='snudown',
+            sources=sources,
+            include_dirs=['src', 'html'],
+            library_dirs=library_dirs,
+            libraries=libraries,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+            extra_objects=extra_objects,
+        )
 
     def initialize_options(self, *args, **kwargs):
         self.translate = self.rust_crosschecks = self.clang_crosschecks = None
+        self.fake_check = None
         distutils.command.build.build.initialize_options(self, *args, **kwargs)
 
     def run(self, *args, **kwargs):
         if self.translate is not None:
             subprocess.check_call(["../translate.sh", "translate"])
-            del extensions[1]
-            del extensions[1]
+            extension = self.build_extension()
+            extensions.append(extension)
+
         if self.rust_crosschecks is not None:
             subprocess.check_call(["../translate.sh", "rustcheck"])
-            del extensions[0]
-            del extensions[1]
+            extension = self.build_extension()
+            extensions.append(extension)
+
         if self.clang_crosschecks is not None:
             subprocess.check_call(["../translate.sh"])
-            del extensions[0]
-            del extensions[0]
-            # Set the compiler path to cc_wrapper.sh
-            os.environ["CC"] = "{cc_wrapper} {cc} {plugin}".format(
-                    cc_wrapper=cc_wrapper_path, cc=cc_path, plugin=plugin_path)
+            extension = self.build_extension()
+            extensions.append(extension)
+
         distutils.command.build.build.run(self, *args, **kwargs)
 
 class GPerfingBuildExt(build_ext):
