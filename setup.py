@@ -102,9 +102,8 @@ class BuildSnudown(distutils.command.build.build):
     ('clang-crosschecks', None,
     'translate then run clang crosschecks'),
 
-    ('fake-check', None,
-    'translate then run fake rust crosschecks'),
-
+    ('use-fakechecks', None,
+    'use the fakechecks library to print the cross-checks'),
     ]
 
     def build_extension(self):
@@ -125,7 +124,7 @@ class BuildSnudown(distutils.command.build.build):
         if self.rust_crosschecks is not None:
             sources.append('src/bufprintf.c')
             library_dirs.extend(['translator-build', fakechecks_path, clevrbuf_path])
-            if self.fake_check is not None:
+            if self.use_fakechecks is not None:
                 libraries.extend(['snudownrustxcheck', 'fakechecks'])
             else:
                 libraries.extend(['snudownrustxcheck', 'clevrbuf'])
@@ -139,7 +138,7 @@ class BuildSnudown(distutils.command.build.build):
             sources.append('../xchecks.c')
             sources.extend(c_files_in('src/'))
             library_dirs.extend([fakechecks_path, clevrbuf_path])
-            if self.fake_check is not None:
+            if self.use_fakechecks is not None:
                 libraries.append('fakechecks')
             else:
                 libraries.append('clevrbuf')
@@ -161,7 +160,7 @@ class BuildSnudown(distutils.command.build.build):
 
     def initialize_options(self, *args, **kwargs):
         self.translate = self.rust_crosschecks = self.clang_crosschecks = None
-        self.fake_check = None
+        self.use_fakechecks = None
         distutils.command.build.build.initialize_options(self, *args, **kwargs)
 
     def run(self, *args, **kwargs):
