@@ -1,10 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 import snudown
 import unittest
 import itertools
-import cStringIO as StringIO
+# import cStringIO as StringIO
+import io as StringIO
 
 
 cases = {
@@ -154,8 +157,8 @@ cases = {
         '<p>fuu/reddit</p>\n',
 
     # Don't treat unicode punctuation as a word boundary for now
-    u'a。u/reddit'.encode('utf8'):
-        u'<p>a。u/reddit</p>\n'.encode('utf8'),
+    'a。u/reddit':
+        '<p>a。u/reddit</p>\n',
 
     '\\/u/me':
         '<p>/u/me</p>\n',
@@ -241,8 +244,8 @@ cases = {
     'foobar/reddit.com':
         '<p>foobar/reddit.com</p>\n',
 
-    u'a。r/reddit.com'.encode('utf8'):
-        u'<p>a。r/reddit.com</p>\n'.encode('utf8'),
+    'a。r/reddit.com':
+        '<p>a。r/reddit.com</p>\n',
 
     '/R/reddit.com':
         '<p>/R/reddit.com</p>\n',
@@ -414,16 +417,16 @@ cases = {
 # Test that every numeric entity is encoded as
 # it should be.
 ILLEGAL_NUMERIC_ENTS = frozenset(itertools.chain(
-    xrange(0, 9),
-    xrange(11, 13),
-    xrange(14, 32),
-    xrange(55296, 57344),
-    xrange(65534, 65536),
+    range(0, 9),
+    range(11, 13),
+    range(14, 32),
+    range(55296, 57344),
+    range(65534, 65536),
 ))
 
 ent_test_key = ''
 ent_test_val = ''
-for i in xrange(65550):
+for i in range(65550):
     ent_testcase = '&#%d;&#x%x;' % (i, i)
     ent_test_key += ent_testcase
     if i in ILLEGAL_NUMERIC_ENTS:
@@ -510,11 +513,11 @@ class SnudownTestCase(unittest.TestCase):
                                        repr(output))):
             if a != b:
                 io = StringIO.StringIO()
-                print >> io, "TEST FAILED:"
-                print >> io, "       input: %s" % repr(self.input)
-                print >> io, "    expected: %s" % repr(self.expected_output)
-                print >> io, "      actual: %s" % repr(output)
-                print >> io, "              %s" % (' ' * i + '^')
+                print("TEST FAILED:", file=io)
+                print("       input: %s" % repr(self.input), file=io)
+                print("    expected: %s" % repr(self.expected_output), file=io)
+                print("      actual: %s" % repr(output), file=io)
+                print("              %s" % (' ' * i + '^'), file=io)
                 self.fail(io.getvalue())
 
 
@@ -522,13 +525,13 @@ class SnudownTestCase(unittest.TestCase):
 def test_snudown():
     suite = unittest.TestSuite()
 
-    for input, expected_output in wiki_cases.iteritems():
+    for input, expected_output in wiki_cases.items():
         case = SnudownTestCase(renderer=snudown.RENDERER_WIKI)
         case.input = input
         case.expected_output = expected_output
         suite.addTest(case)
 
-    for input, expected_output in cases.iteritems():
+    for input, expected_output in cases.items():
         case = SnudownTestCase()
         case.input = input
         case.expected_output = expected_output
