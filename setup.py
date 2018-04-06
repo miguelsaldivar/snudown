@@ -2,11 +2,14 @@ from distutils.spawn import find_executable
 from distutils.cmd import Command
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.dist import Distribution
 
 import re
 import os
 import platform
 import subprocess
+import sys
+import sysconfig
 import fnmatch
 import distutils.command.build
 
@@ -36,6 +39,20 @@ def process_gperf_file(gperf_file, output_file):
     if not find_executable("gperf"):
         raise Exception("Couldn't find `gperf`, is it installed?")
     subprocess.check_call(["gperf", gperf_file, "--output-file=%s" % output_file])
+
+
+def get_ext_filename_without_platform_suffix(filename):
+    name, ext = os.path.splitext(filename)
+    ext_suffix = sysconfig.get_config_var('EXT_SUFFIX')
+
+    if ext_suffix == ext or ext_suffix is None:
+        return filename
+
+    ext_suffix = ext_suffix.replace(ext, '')
+    idx = name.find(ext_suffix)
+
+    return filename if idx == -1 else name[:idx] + ext
+
 
 '''
 extensions[0] -> extension for translating to rust
@@ -179,6 +196,10 @@ class BuildSnudown(distutils.command.build.build):
         distutils.command.build.build.run(self, *args, **kwargs)
 
 class GPerfingBuildExt(build_ext):
+    def get_ext_filename(self, ext_name):
+       filename = build_ext(Distribution()).get_ext_filename(ext_name)
+       return get_ext_filename_without_platform_suffix(filename)
+
     def run(self):
         #translate.py builds this manually
         #process_gperf_file("src/html_entities.gperf", "src/html_entities.h")
